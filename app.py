@@ -2,6 +2,11 @@ import mysql.connector
 from flask import Flask, jsonify, request
 import pandas as pd
 from flask_cors import CORS
+from sklearn.model_selection import train_test_split
+from sklearn.metrics.pairwise import cosine_similarity
+import requests
+from sklearn.preprocessing import LabelEncoder
+
 
 app = Flask(__name__)
 CORS(app)
@@ -373,35 +378,73 @@ def obter_livros_mais_curtidos_por_tema():
 
     return jsonify(livros)
 
-# Função para obter os dados de classificação dos usuários da API
-def obter_classificacoes_usuarios():
-    url = "http://localhost:5000/livros"  # Atualize com a URL correta da sua API
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        return data
-    else:
-        return []
+def criar_dataframe():
+    conn, cur = conectar()
 
-# Rota para obter a matriz de classificação
-@app.route("/matriz_classificacao", methods=["GET"])
-def matriz_classificacao():
-    # Obter os dados de classificação dos usuários
-    classificacoes = obter_classificacoes_usuarios()
+    cur.execute("SELECT * FROM livros")
+    livros = cur.fetchall()
 
-    # Construir o DataFrame de classificação
-    df_classificacoes = pd.DataFrame(classificacoes)
+    # Colunas do DataFrame
+    colunas = ['id', 'titulo', 'autor', 'serie', 'tema', 'faixa_etaria', 'quantidade', 'avaliacao', 'img_url', 'curtidas']
 
-    # Preencher valores ausentes com uma classificação média ou estratégia adequada
-    df_classificacoes = df_classificacoes.fillna(0)  # Preenche com 0, mas você pode ajustar conforme necessário
+    # Criar DataFrame a partir dos dados do banco de dados
+    df = pd.DataFrame(livros, columns=colunas)
 
-    # Converter o DataFrame em um dicionário
-    matriz_dict = df_classificacoes.to_dict()
+    cur.close()
+    conn.close()
 
-    return jsonify(matriz_dict)
+    return df
+
+@app.route('/recomendacoes', methods=['GET'])
+def recomendar_livros_api():
+    conn, cur = conectar()
+
+    # Obter as classificações médias dos livros
+    cur.execute("SELECT livro, AVG(curtidas) AS media_curtidas FROM livros GROUP BY livro;")
+    classificacoes = cur.fetchall()
+
+    # Verificar se existem classificações
+    if len(classificacoes) == 0:
+        return "Não existem classificações."
+
+    # Criar o DataFrame com as classificações médias
+    df = pd.DataFrame(classificacoes, columns=['livro', 'media_curtidas'])
+
+    # Ordenar os livros por média de curtidas
+    df = df.sort_values(by='media_curtidas', ascending=False)
+
+    # Obter os livros recomendados (top 5)
+    livros_recomendados = df.head(5)
+
+    # Obter informações completas dos livros recomendados
+    livro_ids = tuple(livros_recomendados['livro'])
+    cur.execute("SELECT id, livro, autor, serie, tema, faixa_etaria, quantidade, img_url, avaliacao, curtidas FROM livros WHERE livro IN (%s);" % ','.join(['%s']*len(livro_ids)), livro_ids)
+    livros_recomendados_info = []
+    for row in cur.fetchall():
+        id, livro, autor, serie, tema, faixa_etaria, quantidade, img_url, avaliacao, curtidas = row
+        livro_dict = {
+            'id': id,
+            'titulo': livro,
+            'autor': autor,
+            'serie': serie,
+            'tema': tema,
+            'faixa_etaria': faixa_etaria,
+            'quantidade': quantidade,
+            'avaliacao': avaliacao,
+            'img_url': img_url,
+            'curtidas': curtidas
+        }
+        livros_recomendados_info.append(livro_dict)
+
+    cur.close()
+    conn.close()
+
+    return jsonify(livros_recomendados_info)
+
+
 
 if __name__ == '__main__':
-    criar_tabela_livros()
+    df = criar_dataframe()
     app.run()
 
 
