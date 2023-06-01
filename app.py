@@ -49,6 +49,7 @@ def criar_tabela_livros():
     conn.close()
 
 # Buscar todos os livros
+# Buscar todos os livros
 @app.route('/livros', methods=['GET'])
 def obter_livros():
     conn, cur = conectar()
@@ -60,9 +61,9 @@ def obter_livros():
         livro_dict = {
             'id': id,
             'titulo': titulo,
-            'autor': autor,
-            'serie': serie,
-            'tema': tema,
+            'autor': autor if autor else 'Não definido',
+            'serie': serie if serie else 'Não definida',
+            'tema': tema if tema else 'Não definido',
             'faixa_etaria': faixa_etaria,
             'quantidade': quantidade,
             'avaliacao': avaliacao,
@@ -70,6 +71,7 @@ def obter_livros():
             'curtidas': curtidas
         }
         livros.append(livro_dict)
+       
 
     cur.close()
     conn.close()
@@ -251,6 +253,19 @@ def obter_livros_por_tema(tema):
     conn.close()
 
     return jsonify(livros)
+
+@app.route('/livros/faixa_etaria', methods=['GET'])
+def listar_faixas_etarias():
+    conn, cur = conectar()
+
+    cur.execute("SELECT DISTINCT faixa_etaria FROM livros ORDER BY faixa_etaria;")
+    faixas_etarias = [faixa[0] for faixa in cur.fetchall()]
+
+    cur.close()
+    conn.close()
+
+    return jsonify(faixas_etarias)
+
 
 @app.route('/livros/<int:id>', methods=['PUT'])
 def editar_livro_por_id(id):
@@ -441,6 +456,27 @@ def recomendar_livros_api():
 
     return jsonify(livros_recomendados_info)
 
+@app.route('/autores-curtidos', methods=['GET'])
+def autores_curtidos_api():
+    df = criar_dataframe()
+
+    # Análise dos autores mais curtidos
+    autores_curtidas = df.groupby('autor')['curtidas'].sum().reset_index()
+    autores_curtidas = autores_curtidas.sort_values('curtidas', ascending=False)
+    autores_top_10 = autores_curtidas.head(10)
+
+    # Obter informações dos livros dos autores top 10
+    livros_autores_top_10 = df[df['autor'].isin(autores_top_10['autor'])]
+
+    # Converter para o formato JSON
+    livros_autores_top_10_json = livros_autores_top_10.to_dict(orient='records')
+
+    return jsonify(livros_autores_top_10_json)
+
+
+if __name__ == '__main__':
+    df = criar_dataframe()
+    app.run()
 
 
 if __name__ == '__main__':
