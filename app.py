@@ -7,6 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import requests
 from sklearn.preprocessing import LabelEncoder
 
+#piIv
 
 app = Flask(__name__)
 CORS(app)
