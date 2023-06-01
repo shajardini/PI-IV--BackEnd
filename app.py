@@ -473,14 +473,27 @@ def autores_curtidos_api():
 
     return jsonify(livros_autores_top_10_json)
 
+# Buscar os livros mais curtidos por faixa etária
+@app.route('/livros/curtidas_por_faixa_etaria', methods=['GET'])
+def obter_livros_curtidos_por_faixa_etaria():
+    df = criar_dataframe()
+    faixas_etarias = df['faixa_etaria'].unique().tolist()
+
+    livros_curtidos_por_faixa_etaria = {}
+    for faixa_etaria in faixas_etarias:
+        livros_filtrados = df[df['faixa_etaria'] == faixa_etaria]
+        livros_filtrados = livros_filtrados.sort_values(by='curtidas', ascending=False)
+        livros_filtrados = livros_filtrados.head(5)
+
+        livros_curtidos_por_faixa_etaria[faixa_etaria] = livros_filtrados.to_dict('records')
+
+    return jsonify(livros_curtidos_por_faixa_etaria)
 
 if __name__ == '__main__':
     df = criar_dataframe()
     app.run()
 
 
-if __name__ == '__main__':
-    df = criar_dataframe()
-    app.run()
+
 
 
