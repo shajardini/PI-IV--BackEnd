@@ -14,11 +14,11 @@ CORS(app)
 
 # Configuração do banco de dados
 db_config = {
-    'host': 'localhost',
+    'host': 'us-cdbr-east-06.cleardb.net',
     'port': 3306,
-    'database': 'books',
-    'user': 'root',
-    'password': 'salomao775'
+    'database': 'heroku_c6bdd85301c5ecb',
+    'user': 'bc9e5f28847be3',
+    'password': '67f3688b'
 }
 
 def conectar():
